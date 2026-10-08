@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#061b2d">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<title>OPERA V17 Mobile</title>
+<style>
+:root{--bg:#061b2d;--card:#0d2b43;--accent:#16a7dc;--txt:#f2f8fc;--muted:#9bb2c2;--ok:#45d39c;--warn:#f6c453;--err:#f47777}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--txt);font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif}
+header{position:sticky;top:0;z-index:5;background:#08243a;padding:15px 16px;padding-top:calc(15px + env(safe-area-inset-top));border-bottom:1px solid #ffffff12}
+h1{font-size:21px;margin:0}.sub{font-size:12px;color:var(--muted)}
+main{max-width:760px;margin:auto;padding:12px 14px 40px}.card{background:var(--card);border-radius:17px;padding:15px;margin:10px 0;box-shadow:0 6px 20px #0003}
+input,button,select{width:100%;border:0;border-radius:12px;padding:14px;margin:5px 0;font-size:16px}
+input,select{background:#f6f9fb;color:#111}button{background:var(--accent);color:white;font-weight:800}
+button.secondary{background:#23445d}.danger{background:#b9404b}.hidden{display:none!important}.grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}.metric{font-size:27px;font-weight:900}.muted{color:var(--muted);font-size:13px}
+.ok{color:var(--ok)}.warn{color:var(--warn)}.err{color:var(--err)}
+nav{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;position:sticky;bottom:0;background:#061b2df0;padding:7px;z-index:4}
+nav button{font-size:11px;padding:10px 3px}.item{padding:12px 0;border-bottom:1px solid #ffffff12}
+video{width:100%;border-radius:14px;background:#000;display:none}.pill{display:inline-block;padding:4px 8px;border-radius:99px;background:#173e59;font-size:12px}
+</style>
+</head>
+<body>
+<header><h1>OPERA V17</h1><div class="sub">Mobile Standalone • Controle Operacional</div></header>
+<main>
+<section id="login" class="card">
+<h2>Entrar</h2>
+<input id="loginUser" placeholder="Usuário" value="">
+<input id="loginPass" type="password" placeholder="Senha">
+<button onclick="login()">Entrar</button>
+<div id="loginMsg" class="muted"></div>
+</section>
+
+<section id="home" class="hidden">
+<div class="grid">
+<div class="card"><div class="muted">Pallets OK</div><div id="mOk" class="metric">0</div></div>
+<div class="card"><div class="muted">Demandas</div><div id="mDem" class="metric">0</div></div>
+<div class="card"><div class="muted">Guardas</div><div id="mGuard" class="metric">0</div></div>
+<div class="card"><div class="muted">Fila</div><div id="mQueue" class="metric">0</div></div>
+</div>
+<div class="card"><h3>Status</h3><div id="status" class="ok">Online</div><div class="muted">Os dados principais ficam no celular.</div></div>
+</section>
+
+<section id="operacao" class="hidden">
+<div class="card">
+<h3>Scanner / Guarda</h3>
+<video id="video" playsinline></video>
+<button onclick="openScanner()">📷 Abrir câmera</button>
+<input id="palletCode" placeholder="Código do pallet">
+<input id="addressCode" placeholder="Endereço">
+<button onclick="confirmGuard()">Confirmar Guarda</button>
+<div id="guardMsg"></div>
+</div>
+<div class="card"><h3>FEFO / Slotting</h3><div id="fefoList"></div><button class="secondary" onclick="renderFEFO()">Atualizar</button></div>
+</section>
+
+<section id="check" class="hidden">
+<div class="card"><h3>Check 360</h3>
+<input id="checkPallet" placeholder="Código do pallet">
+<select id="checkResult"><option>OK</option><option>RETRABALHO</option><option>PNC</option><option>DIVERGENCIA</option></select>
+<input id="checkNote" placeholder="Observação">
+<button onclick="check360()">Registrar Check 360</button>
+<div id="checkMsg"></div>
+</div>
+</section>
+
+<section id="dados" class="hidden">
+<div class="card"><h3>Demandas abertas</h3><div id="demands"></div></div>
+<div class="card"><h3>Mapa</h3><div id="map"></div></div>
+<div class="card"><h3>Timeline</h3><input id="timelineP" placeholder="Pallet"><button onclick="timeline()">Consultar</button><div id="timeline"></div></div>
+<div class="card"><h3>Backup</h3><button onclick="exportBackup()">Exportar dados</button><input type="file" accept=".json,application/json" onchange="importBackup(this.files[0])"></div>
+</section>
+</main>
+<nav id="nav" class="hidden">
+<button onclick="show('home')">🏠<br>Início</button>
+<button onclick="show('operacao')">📦<br>Operação</button>
+<button onclick="show('check')">🔎<br>Check 360</button>
+<button onclick="show('dados')">📊<br>Dados</button>
+</nav>
+
+<script>
+const DB_NAME='opera_v17', DB_VER=1;
+let db, currentUser=null, stream=null;
+
+const seedUsers=[
+ {username:'joao',password:'1234',role:'OPERADOR'},
+ {username:'ana',password:'1234',role:'CHECK360'},
+ {username:'maria',password:'1234',role:'SUPERVISOR'},
+ {username:'admin',password:'1234',role:'ADMIN'}
+];
+const seedPallets=[
+ {code:'P00125',expiry:'2027-01-15',status:'PENDING',address:null},
+ {code:'P00140',expiry:'2027-01-10',status:'PENDING',address:null},
+ {code:'P00126',expiry:'2026-12-20',status:'RETRABALHO',address:null},
+ {code:'P00127',expiry:'2026-12-10',status:'PNC',address:null}
+];
+const seedAddresses=[
+ {code:'A03-02-04',capacity:2,occupancy:0},
+ {code:'A03-02-05',capacity:2,occupancy:0},
+ {code:'A03-02-06',capacity:2,occupancy:0},
+ {code:'B01-01-02',capacity:1,occupancy:0}
+];
+
+function req(store,mode='readonly'){return db.transaction(store,mode).objectStore(store)}
+function idbGet(store,key){return new Promise((res,rej)=>{let r=req(store).get(key);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}
+function idbAll(store){return new Promise((res,rej)=>{let r=req(store).getAll();r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}
+function idbPut(store,v){return new Promise((res,rej)=>{let r=req(store,'readwrite').put(v);r.onsuccess=()=>res(v);r.onerror=()=>rej(r.error)})}
+function idbClear(store){return new Promise((res,rej)=>{let r=req(store,'readwrite').clear();r.onsuccess=()=>res();r.onerror=()=>rej(r.error)})}
+
+function openDB(){
+ return new Promise((resolve,reject)=>{
+  let r=indexedDB.open(DB_NAME,DB_VER);
+  r.onupgradeneeded=e=>{let d=e.target.result;['users','pallets','addresses','demands','events','evidence','sync_queue'].forEach(s=>{if(!d.objectStoreNames.contains(s))d.createObjectStore(s,{keyPath:'id',autoIncrement:true})})};
+  r.onsuccess=async()=>{db=r.result;await seed();resolve()};
+  r.onerror=()=>reject(r.error);
+ })
+}
+async function seed(){
+ if((await idbAll('users')).length)return;
+ for(let u of seedUsers)await idbPut('users',u);
+ for(let p of seedPallets)await idbPut('pallets',p);
+ for(let a of seedAddresses)await idbPut('addresses',a);
+}
+async function login(){
+ let u=$('loginUser').value.trim(),p=$('loginPass').value;
+ let users=await idbAll('users'), found=users.find(x=>x.username===u&&x.password===p);
+ if(!found){$('loginMsg').textContent='Usuário ou senha inválidos';return}
+ currentUser=found;$('login').classList.add('hidden');$('nav').classList.remove('hidden');show('home');refresh();
+}
+function $(id){return document.getElementById(id)}
+function show(id){
+ ['home','operacao','check','dados'].forEach(x=>$(x).classList.add('hidden'));
+ $(id).classList.remove('hidden');refresh();
+}
+async function refresh(){
+ let ps=await idbAll('pallets'), ds=await idbAll('demands'), ev=await idbAll('events'), q=await idbAll('sync_queue');
+ $('mOk').textContent=ps.filter(x=>x.status==='CHECK360_OK').length;
+ $('mDem').textContent=ds.filter(x=>x.status==='OPEN').length;
+ $('mGuard').textContent=ev.filter(x=>x.type==='GUARD_CONFIRMADA').length;
+ $('mQueue').textContent=q.filter(x=>x.status!=='SYNCED').length;
+ $('status').textContent=navigator.onLine?'Online':'Offline — dados locais';
+ renderFEFO();renderDemands();renderMap();
+}
+function uuid(){return crypto.randomUUID?crypto.randomUUID():Date.now()+'-'+Math.random()}
+async function check360(){
+ let code=$('checkPallet').value.trim(), result=$('checkResult').value;
+ let p=(await idbAll('pallets')).find(x=>x.code===code);
+ if(!p){$('checkMsg').textContent='Pallet não encontrado';return}
+ p.status=result==='OK'?'CHECK360_OK':result;
+ await idbPut('pallets',p);
+ if(result==='OK'){
+  let addr=(await idbAll('addresses')).filter(a=>a.occupancy<a.capacity).sort((a,b)=>a.occupancy-b.occupancy)[0];
+  if(addr)await idbPut('demands',{key:uuid(),palletCode:code,addressCode:addr.code,status:'OPEN',createdAt:new Date().toISOString()});
+ }
+ await event('CHECK360',code,null,{result,note:$('checkNote').value});
+ $('checkMsg').innerHTML='<span class="ok">Check 360 registrado.</span>';refresh();
+}
+async function confirmGuard(){
+ let code=$('palletCode').value.trim(), addrCode=$('addressCode').value.trim(), p=(await idbAll('pallets')).find(x=>x.code===code);
+ if(!p){$('guardMsg').innerHTML='<span class="err">Pallet não encontrado.</span>';return}
+ let a=(await idbAll('addresses')).find(x=>x.code===addrCode);
+ let ds=await idbAll('demands'), d=ds.find(x=>x.palletCode===code&&x.status==='OPEN');
+ if(!a||!d){$('guardMsg').innerHTML='<span class="err">Demanda/endereço não encontrado.</span>';return}
+ if(p.status!=='CHECK360_OK'){ $('guardMsg').innerHTML='<span class="err">Pallet sem liberação do Check 360.</span>';return}
+ if(a.occupancy>=a.capacity){$('guardMsg').innerHTML='<span class="err">Endereço sem capacidade.</span>';return}
+ p.status='STORED';p.address=addrCode;await idbPut('pallets',p);
+ d.status='DONE';d.completedAt=new Date().toISOString();await idbPut('demands',d);
+ a.occupancy++;await idbPut('addresses',a);
+ await event('GUARD_CONFIRMADA',code,addrCode,{operator:currentUser.username});
+ await queue({type:'GUARDA',palletCode:code,addressCode:addrCode,clientEventId:uuid(),status:navigator.onLine?'PENDING':'OFFLINE'});
+ $('guardMsg').innerHTML='<span class="ok">Guarda confirmada e registrada no celular.</span>';refresh();
+}
+async function event(type,pallet,address,payload){await idbPut('events',{type,pallet,address,payload,createdAt:new Date().toISOString()})}
+async function queue(x){await idbPut('sync_queue',x)}
+async function renderFEFO(){
+ if(!$('fefoList'))return;
+ let ps=(await idbAll('pallets')).filter(x=>x.status==='CHECK360_OK').sort((a,b)=>a.expiry.localeCompare(b.expiry)), as=(await idbAll('addresses')).filter(a=>a.occupancy<a.capacity);
+ $('fefoList').innerHTML=ps.map(p=>{let a=as[0];return `<div class="item"><b>${p.code}</b> • validade ${p.expiry}<br><span class="pill">Sugestão: ${a?a.code:'sem capacidade'}</span></div>`}).join('')||'<div class="muted">Nenhum pallet liberado.</div>';
+}
+async function renderDemands(){
+ if(!$('demands'))return;let ds=(await idbAll('demands')).filter(x=>x.status==='OPEN');
+ $('demands').innerHTML=ds.map(d=>`<div class="item"><b>${d.palletCode}</b> → ${d.addressCode}</div>`).join('')||'<div class="muted">Sem demandas abertas.</div>';
+}
+async function renderMap(){
+ if(!$('map'))return;let as=await idbAll('addresses');
+ $('map').innerHTML=as.map(a=>`<div class="item"><b>${a.code}</b> — ${a.occupancy}/${a.capacity} ocupado</div>`).join('');
+}
+async function timeline(){
+ let code=$('timelineP').value.trim(), es=(await idbAll('events')).filter(e=>e.pallet===code);
+ $('timeline').innerHTML=es.map(e=>`<div class="item"><b>${e.type}</b><br>${new Date(e.createdAt).toLocaleString()}</div>`).join('')||'Sem eventos.';
+}
+async function openScanner(){
+ if(!navigator.mediaDevices?.getUserMedia){alert('Câmera indisponível; use digitação.');return}
+ try{
+  stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
+  $('video').srcObject=stream;$('video').style.display='block';await $('video').play();
+  if(!('BarcodeDetector' in window)){alert('Seu navegador não oferece BarcodeDetector. Use digitação.');return}
+  let det=new BarcodeDetector({formats:['code_128','ean_13','ean_8','qr_code']});
+  const loop=async()=>{if(!stream)return;try{let c=await det.detect($('video'));if(c.length){$('palletCode').value=c[0].rawValue;stream.getTracks().forEach(t=>t.stop());stream=null;$('video').style.display='none';return}}catch(e){}requestAnimationFrame(loop)};loop();
+ }catch(e){alert('Não foi possível abrir a câmera: '+e.message)}
+}
+async function exportBackup(){
+ let data={users:await idbAll('users'),pallets:await idbAll('pallets'),addresses:await idbAll('addresses'),demands:await idbAll('demands'),events:await idbAll('events'),evidence:await idbAll('evidence'),sync_queue:await idbAll('sync_queue')};
+ let blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}), a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='opera-v17-backup.json';a.click();
+}
+async function importBackup(file){
+ if(!file)return;let data=JSON.parse(await file.text());
+ for(let s of ['users','pallets','addresses','demands','events','evidence','sync_queue']){if(data[s])for(let x of data[s])await idbPut(s,x)}
+ alert('Backup importado');refresh();
+}
+async function syncQueue(){
+ if(!navigator.onLine)return;
+ let q=await idbAll('sync_queue');
+ for(let x of q){if(x.status==='SYNCED')continue;x.status='SYNCED';x.syncedAt=new Date().toISOString();await idbPut('sync_queue',x)}
+ refresh();
+}
+addEventListener('online',syncQueue);
+addEventListener('offline',refresh);
+openDB();
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js');
+</script>
+</body></html>
