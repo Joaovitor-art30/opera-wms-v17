@@ -1,36 +1,18 @@
-# OPERA WMS V18 — Mobile Standalone
+# OPERA WMS V19 — pacote mobile e computador
 
-Evolução da V17 com foco em operação, rastreabilidade e visibilidade.
+Protótipo evoluído do V18 para celular e computador. O pacote tenta migrar o estado local `opera_v18_state` para `opera_v19_state` no mesmo navegador; **faça backup antes de publicar**.
 
-## Novidades V18
-- Torre de Controle inicial com indicadores.
-- Perfis e permissões visíveis; usuário não acessa função de outro perfil.
-- Botão Sair/trocar usuário.
-- Check 360 com quantidade, origem, transportadora, resultado, observação e registro de responsável.
-- Estrutura para evidências/fotos.
-- Operação com demandas de guarda, lote, quantidade, validade e filtro por mês.
-- FEFO/slotting e validação de endereço.
-- Guarda registra responsável, data/hora, endereço e evento de auditoria.
-- Dados com indicadores, gráfico simples, pesquisa e rastreabilidade.
-- Mapa 2D de posições e visualização 3D operacional preparada para estrutura real.
-- Backup/importação JSON.
-- PWA instalável no iPhone/Android quando publicado via HTTPS.
+## Publicação pelo iPhone
+1. No V18, entre em Admin e exporte o backup JSON, se disponível.
+2. Baixe e descompacte este ZIP no app Arquivos.
+3. No Safari, abra o repositório existente `opera-wms-v17` e escolha Add file → Upload files.
+4. Substitua todos os arquivos e mantenha os caminhos, incluindo `index.html`, `manifest.webmanifest`, `sw.js` e `icons/`. Não basta substituir só o HTML.
+5. Se o iPhone não permitir selecionar pastas ou preservar os caminhos, não faça commit parcial. Tente modo computador ou use computador autorizado para concluir.
+6. Faça commit na branch `main` com mensagem `Atualiza OPERA WMS V19`.
+7. Abra `https://joaovitor-art30.github.io/opera-wms-v17/` no Safari, recarregue e confirme o título V19.
+8. Preserve o backup do V18 até validar os registros.
 
-## Usuários de teste
-- joao / 1234 — OPERADOR
-- ana / 1234 — CHECK360
-- maria / 1234 — SUPERVISOR
-- admin / 1234 — ADMIN
+Usuários de demonstração: `joao`, `ana`, `maria`, `admin`; senha `1234`.
 
-## Processo completo recomendado
-1. Entre como `ana`.
-2. Check 360 → P00140 → OK → registrar.
-3. Sair.
-4. Entre como `joao`.
-5. Operação → selecione demanda P00140 → usar demanda → confirmar guarda.
-6. Sair.
-7. Entre como `maria` e abra Dados.
-8. Pesquise P00140 e confira responsável pelo Check e pela Guarda.
-
-## Importante
-Esta versão é standalone/local: os dados ficam no navegador do aparelho. Ela não é integração real com WMS. Para sincronização corporativa e integração WMS será necessário um backend/adapter oficial.
+## Limites
+Dados são locais ao navegador; não há sincronização entre dispositivos nem backend corporativo. O WMS continua sendo o estoque oficial e não está conectado. Integração exige interface oficial e homologação. Fotos reais, mapa 3D produtivo, leitor validado, relatórios corporativos e autenticação corporativa ainda exigem desenvolvimento.
